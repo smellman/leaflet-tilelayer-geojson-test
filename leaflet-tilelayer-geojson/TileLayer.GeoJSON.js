@@ -156,23 +156,8 @@ L.TileLayer.GeoJSON = L.TileLayer.extend({
     includes: L.Evented,
 
     options: {
-        minZoom: 0,
-        maxZoom: 18,
-        tileSize: 256,
-        subdomains: 'abc',
-        errorTileUrl: '',
-        attribution: '',
-        zoomOffset: 0,
-        opacity: 1,
-
-        zIndex: null,
-        tms: false,
-        continuousWorld: false,
-        noWrap: false,
-        zoomReverse: false,
-        detectRetina: false,
-
-        updateWhenIdle: L.Browser.mobile
+        updateWhenIdle: L.Browser.mobile,
+        unique: null
     },
 
     geoJSONOptions: {
@@ -195,26 +180,14 @@ L.TileLayer.GeoJSON = L.TileLayer.extend({
 
 
     initialize: function (url, options) {
-        L.Util.setOptions(this, options);
-
-        // detecting retina displays, adjusting tileSize and zoom levels
-        if (this.options.detectRetina && L.Browser.retina && this.options.maxZoom > 0) {
-
-            this.options.tileSize = Math.floor(this.options.tileSize / 2);
-            this.options.zoomOffset++;
-
-            if (this.options.minZoom > 0) {
-                this.options.minZoom--;
-            }
-            this.options.maxZoom--;
-        }
-
-        this._url = url;
-
-        var subdomains = this.options.subdomains;
-
-        if (typeof subdomains === 'string') {
-            this.options.subdomains = subdomains.split('');
+        L.TileLayer.prototype.initialize.call(this, url, options);
+        var unique;
+        if (options.unique) {
+          this._unique = options.unique;
+        } else {
+          this._unique = function (feature) {
+            return unique.id;
+          };
         }
     },
 
@@ -251,7 +224,7 @@ L.TileLayer.GeoJSON = L.TileLayer.extend({
             map.off('move', this._limitedUpdate, this);
         }
         this._reset();
-        this._map = null;
+        //this._map = null;
     },
 
     setGeoJSONOptions: function(options) {
@@ -482,17 +455,22 @@ L.TileLayer.GeoJSON = L.TileLayer.extend({
         var url = tile._url;
 
         var success = function() {
+          status = parseInt(this.status);
+          if (status >= 400) {
+            return;
+          }
           var data = JSON.parse(this.responseText);
           for(var f in data.features) {
               var feature = data.features[f];
               // dedupe features that are already in the layer
               // from already loaded adjacent tiles
-              if(feature.id && feature.id in tile._layer._geoJSONFeatures) {
+              var unique_id = tile._layer._unique(feature);
+              if(unique_id && unique_id in tile._layer._geoJSONFeatures) {
                   continue;
               }
               tile.addData(feature);
-              if (feature.id) {
-                tile._layer._geoJSONFeatures[feature.id] = feature;
+              if (unique_id) {
+                tile._layer._geoJSONFeatures[unique_id] = feature;
               }
           }
 
@@ -542,7 +520,10 @@ L.TileLayer.GeoJSON = L.TileLayer.extend({
 
     _abortLoading: function() {
       // do nothing
-      L.TileLayer.prototype._abortLoading.call(this);
+    },
+
+    _updateLevels: function () {
+      // do nothing
     }
 
 });

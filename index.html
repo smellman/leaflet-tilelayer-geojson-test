@@ -1,6 +1,7 @@
-<!DOCTYPE>
-<html>
+<!DOCTYPE html>
+<html lang="ja">
   <head>
+    <meta charset="utf-8"/>
     <title>leaflet tilelayer geojson test</title>
     <style>
     html, body {
@@ -21,11 +22,15 @@
     <div id="map" />
     <script>
     var map = L.map('map');
-    L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
+    var baseLayer = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
       attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>地理院タイル</a>"
     }).addTo(map);
+    var baseLayers = {
+      "地理院タイル": baseLayer
+    };
+
     map.setView([35.3622222, 138.7313889], 14);
-    //var hash = new L.Hash(map);
+    var hash = new L.Hash(map);
 
     var style = {
       "clickable": true,
@@ -39,13 +44,13 @@
       "fillOpacity": 0.5
     };
 
-    var geojsonURL = 'https://cyberjapandata.gsi.go.jp/xyz/pp/{z}/{x}/{y}.geojson';
-    var geojsonTileLayer = new L.TileLayer.GeoJSON(geojsonURL, {
+    var ppGeojsonURL = 'https://cyberjapandata.gsi.go.jp/xyz/pp/{z}/{x}/{y}.geojson';
+    var ppGeojsonTileLayer = new L.TileLayer.GeoJSON(ppGeojsonURL, {
       minZoom: 14,
       maxZoom: 14,
       clipTiles: true,
       unique: function (feature) {
-        return feature.id;
+        return feature.ID;
       }
     }, {
       style: style,
@@ -69,7 +74,45 @@
         }
       }
     });
-    map.addLayer(geojsonTileLayer);
+    //map.addLayer(ppGeojsonTileLayer);
+
+    var cpGeojsonUrl = "https://cyberjapandata.gsi.go.jp/xyz/cp/{z}/{x}/{y}.geojson"
+    var cpGeojsonTileLayer = new L.TileLayer.GeoJSON(cpGeojsonUrl, {
+      minZoom: 7,
+      maxZoom: 12,
+      clipTiles: true,
+      unique: function (feature) {
+        return feature["基準点コード"];
+      }
+    }, {
+      style: style,
+      onEachFeature: function (feature, layer) {
+        if (feature.properties) {
+          var popupString = '<div class="popup">';
+          for (var k in feature.properties) {
+            var v = feature.properties[k];
+            popupString += k + ': ' + v + '<br />';
+          }
+          popupString += '</div>';
+          layer.bindPopup(popupString);
+        }
+        if (!(layer instanceof L.Point)) {
+          layer.on('mouseover', function () {
+            layer.setStyle(hoverStyle);
+          });
+          layer.on('mouseout', function () {
+            layer.setStyle(style);
+          });
+        }
+      }
+    });
+    //map.addLayer(ppGeojsonTileLayer);
+    var overlays = {
+      "単写真(Zoom:14)": ppGeojsonTileLayer,
+      "基準点(Zoom:7〜12)": cpGeojsonTileLayer
+    };
+    L.control.layers(baseLayers, overlays).addTo(map);
+
     </script>
   </body>
 </html>
